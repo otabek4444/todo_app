@@ -3,7 +3,7 @@ class Todo {
   String title;
   String category;
   bool isCompleted;
-  DateTime? dueDate;
+  DateTime? dueDate;  // ← Allaqachon bor edi!
 
   Todo({
     required this.id,
@@ -35,5 +35,29 @@ class Todo {
       'isCompleted': isCompleted,
       'dueDate': dueDate?.toIso8601String(),
     };
+  }
+
+  // Muddat o'tganmi tekshirish
+  bool get isOverdue {
+    if (dueDate == null || isCompleted) return false;
+    return dueDate!.isBefore(DateTime.now());
+  }
+
+  // Bugun tugallanishi kerakmi
+  bool get isDueToday {
+    if (dueDate == null) return false;
+    final now = DateTime.now();
+    return dueDate!.year == now.year &&
+        dueDate!.month == now.month &&
+        dueDate!.day == now.day;
+  }
+
+  // Ertaga tugallanishi kerakmi
+  bool get isDueTomorrow {
+    if (dueDate == null) return false;
+    final tomorrow = DateTime.now().add(Duration(days: 1));
+    return dueDate!.year == tomorrow.year &&
+        dueDate!.month == tomorrow.month &&
+        dueDate!.day == tomorrow.day;
   }
 }

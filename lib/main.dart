@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'todo_model.dart';
+import 'package:intl/intl.dart';
 
 void main() {
   runApp(TodoApp());
@@ -117,6 +118,7 @@ class _TodoListScreenState extends State<TodoListScreen> {
       ),
       child: Column(
         children: [
+          // Kategoriya tanlash
           Container(
             padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
@@ -157,7 +159,10 @@ class _TodoListScreenState extends State<TodoListScreen> {
               }).toList(),
             ),
           ),
+
           SizedBox(height: 12),
+
+          // Vazifa qo'shish input va tugma
           Row(
             children: [
               Expanded(
@@ -197,11 +202,29 @@ class _TodoListScreenState extends State<TodoListScreen> {
               ),
             ],
           ),
+
+          SizedBox(height: 8),
+
+          // Sana tanlash tugmasi
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _selectDate,
+              icon: Icon(Icons.calendar_today, size: 18),
+              label: Text('Muddat qo\'shish'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: categoryColors[selectedCategory],
+                side: BorderSide(color: categoryColors[selectedCategory]!),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
-
   Widget _buildFilterButtons() {
     return Container(
       height: 50,
@@ -364,29 +387,74 @@ class _TodoListScreenState extends State<TodoListScreen> {
                   color: todo.isCompleted ? Colors.grey : null,
                 ),
               ),
-              subtitle: Row(
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    categoryIcons[todo.category],
-                    size: 14,
-                    color: categoryColors[todo.category],
-                  ),
-                  SizedBox(width: 4),
-                  Text(
-                    todo.category,
-                    style: TextStyle(
-                      color: categoryColors[todo.category],
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        categoryIcons[todo.category],
+                        size: 14,
+                        color: categoryColors[todo.category],
+                      ),
+                      SizedBox(width: 4),
+                      Text(
+                        todo.category,
+                        style: TextStyle(
+                          color: categoryColors[todo.category],
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (todo.dueDate != null) ...[
+                        SizedBox(width: 12),
+                        Icon(
+                          Icons.calendar_today,
+                          size: 12,
+                          color: _getDueDateColor(todo),
+                        ),
+                        SizedBox(width: 4),
+                        Text(
+                          _formatDueDate(todo.dueDate),
+                          style: TextStyle(
+                            color: _getDueDateColor(todo),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),
-              trailing: IconButton(
-                icon: Icon(Icons.delete_outline, color: Colors.red[300]),
-                onPressed: () {
-                  _deleteTodo(realIndex);
-                },
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (todo.dueDate != null)
+                    IconButton(
+                      icon: Icon(Icons.event_busy, size: 20),
+                      color: Colors.grey,
+                      onPressed: () {
+                        setState(() {
+                          todos[realIndex].dueDate = null;
+                        });
+                        _saveTodos();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Muddat o\'chirildi'),
+                            duration: Duration(seconds: 1),
+                          ),
+                        );
+                      },
+                    ),
+                  IconButton(
+                    icon: Icon(Icons.delete_outline, color: Colors.red[300]),
+                    onPressed: () {
+                      _deleteTodo(realIndex);
+                    },
+                  ),
+                ],
               ),
             ),
           ),
@@ -414,13 +482,14 @@ class _TodoListScreenState extends State<TodoListScreen> {
     await prefs.setString('todos', encoded);
   }
 
-  void _addTodo(String title) {
+  void _addTodo(String title, {DateTime? dueDate}) {
     setState(() {
       todos.add(Todo(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         title: title,
         category: selectedCategory,
         isCompleted: false,
+        dueDate: dueDate,  // ← YANGI
       ));
     });
     _controller.clear();
@@ -456,5 +525,55 @@ class _TodoListScreenState extends State<TodoListScreen> {
         ),
       ),
     );
+  }
+  Future<void> _selectDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(Duration(days: 365)),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: categoryColors[selectedCategory]!,
+              onPrimary: Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      if (_controller.text.isNotEmpty) {
+        _addTodo(_controller.text, dueDate: picked);
+      }
+    }
+  }
+
+  String _formatDueDate(DateTime? date) {
+    if (date == null) return '';
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final tomorrow = today.add(Duration(days: 1));
+    final dateOnly = DateTime(date.year, date.month, date.day);
+
+    if (dateOnly == today) {
+      return 'Bugun';
+    } else if (dateOnly == tomorrow) {
+      return 'Ertaga';
+    } else {
+      return DateFormat('MMM dd').format(date);
+    }
+  }
+
+  Color _getDueDateColor(Todo todo) {
+    if (todo.dueDate == null) return Colors.grey;
+    if (todo.isCompleted) return Colors.grey;
+    if (todo.isOverdue) return Colors.red;
+    if (todo.isDueToday) return Colors.orange;
+    return Colors.blue;
   }
 }
