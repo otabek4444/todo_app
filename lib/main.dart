@@ -3,6 +3,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'todo_model.dart';
 import 'package:intl/intl.dart';
+import 'package:vibration/vibration.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'statistics_screen.dart';
 
 void main() {
   runApp(TodoApp());
@@ -80,6 +83,19 @@ class _TodoListScreenState extends State<TodoListScreen> {
         elevation: 0,
         centerTitle: true,
         actions: [
+          // Statistika tugmasi
+          IconButton(
+            icon: Icon(Icons.bar_chart),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => StatisticsScreen(todos: todos),
+                ),
+              );
+            },
+          ),
+          // Hisob
           Padding(
             padding: EdgeInsets.only(right: 16),
             child: Center(
@@ -313,6 +329,7 @@ class _TodoListScreenState extends State<TodoListScreen> {
     );
   }
 
+
   Widget _buildTodoList() {
     List<Todo> filteredTodos = filterCategory == 'All'
         ? todos
@@ -325,136 +342,159 @@ class _TodoListScreenState extends State<TodoListScreen> {
         final todo = filteredTodos[index];
         final realIndex = todos.indexOf(todo);
 
-        return Dismissible(
-          key: Key(todo.id),
-          background: Container(
-            alignment: Alignment.centerRight,
-            padding: EdgeInsets.only(right: 20),
-            decoration: BoxDecoration(
-              color: Colors.red,
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Icon(Icons.delete, color: Colors.white, size: 30),
-          ),
-          direction: DismissDirection.endToStart,
-          onDismissed: (direction) {
-            _deleteTodo(realIndex);
-          },
-          child: Card(
-            elevation: 2,
-            margin: EdgeInsets.only(bottom: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
-              side: BorderSide(
-                color: categoryColors[todo.category]!.withOpacity(0.3),
-                width: 2,
+        return AnimatedOpacity(
+          duration: Duration(milliseconds: 300),
+          opacity: 1.0,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: Offset(0.3, 0),
+              end: Offset.zero,
+            ).animate(
+              CurvedAnimation(
+                parent: AlwaysStoppedAnimation(1),
+                curve: Curves.easeOut,
               ),
             ),
-            child: ListTile(
-              contentPadding:
-              EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              leading: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 4,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: categoryColors[todo.category],
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  SizedBox(width: 12),
-                  Checkbox(
-                    value: todo.isCompleted,
-                    activeColor: categoryColors[todo.category],
-                    onChanged: (value) {
-                      _toggleTodo(realIndex);
-                    },
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                  ),
-                ],
-              ),
-              title: Text(
-                todo.title,
-                style: TextStyle(
-                  fontSize: 16,
-                  decoration: todo.isCompleted
-                      ? TextDecoration.lineThrough
-                      : TextDecoration.none,
-                  color: todo.isCompleted ? Colors.grey : null,
+            child: Dismissible(
+              key: Key(todo.id),
+              background: Container(
+                alignment: Alignment.centerRight,
+                padding: EdgeInsets.only(right: 20),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(15),
                 ),
+                child: Icon(Icons.delete, color: Colors.white, size: 30),
               ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(
-                        categoryIcons[todo.category],
-                        size: 14,
-                        color: categoryColors[todo.category],
+              direction: DismissDirection.endToStart,
+              onDismissed: (direction) {
+                _deleteTodo(realIndex);
+              },
+              child: AnimatedContainer(
+                duration: Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+                margin: EdgeInsets.only(bottom: 12),
+                child: Card(
+                  elevation: todo.isCompleted ? 1 : 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                    side: BorderSide(
+                      color: categoryColors[todo.category]!.withOpacity(
+                        todo.isCompleted ? 0.2 : 0.3,
                       ),
-                      SizedBox(width: 4),
-                      Text(
-                        todo.category,
-                        style: TextStyle(
-                          color: categoryColors[todo.category],
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                      width: 2,
+                    ),
+                  ),
+                  child: ListTile(
+                    contentPadding:
+                    EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    leading: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 4,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            color: categoryColors[todo.category],
+                            borderRadius: BorderRadius.circular(2),
+                          ),
                         ),
-                      ),
-                      if (todo.dueDate != null) ...[
                         SizedBox(width: 12),
-                        Icon(
-                          Icons.calendar_today,
-                          size: 12,
-                          color: _getDueDateColor(todo),
-                        ),
-                        SizedBox(width: 4),
-                        Text(
-                          _formatDueDate(todo.dueDate),
-                          style: TextStyle(
-                            color: _getDueDateColor(todo),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
+                        Checkbox(
+                          value: todo.isCompleted,
+                          activeColor: categoryColors[todo.category],
+                          onChanged: (value) {
+                            _toggleTodo(realIndex);
+                          },
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(5),
                           ),
                         ),
                       ],
-                    ],
-                  ),
-                ],
-              ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (todo.dueDate != null)
-                    IconButton(
-                      icon: Icon(Icons.event_busy, size: 20),
-                      color: Colors.grey,
-                      onPressed: () {
-                        setState(() {
-                          todos[realIndex].dueDate = null;
-                        });
-                        _saveTodos();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Muddat o\'chirildi'),
-                            duration: Duration(seconds: 1),
-                          ),
-                        );
-                      },
                     ),
-                  IconButton(
-                    icon: Icon(Icons.delete_outline, color: Colors.red[300]),
-                    onPressed: () {
-                      _deleteTodo(realIndex);
-                    },
+                    title: AnimatedDefaultTextStyle(
+                      duration: Duration(milliseconds: 300),
+                      style: TextStyle(
+                        fontSize: 16,
+                        decoration: todo.isCompleted
+                            ? TextDecoration.lineThrough
+                            : TextDecoration.none,
+                        color: todo.isCompleted ? Colors.grey : Colors.black,
+                      ),
+                      child: Text(todo.title),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(
+                              categoryIcons[todo.category],
+                              size: 14,
+                              color: categoryColors[todo.category],
+                            ),
+                            SizedBox(width: 4),
+                            Text(
+                              todo.category,
+                              style: TextStyle(
+                                color: categoryColors[todo.category],
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            if (todo.dueDate != null) ...[
+                              SizedBox(width: 12),
+                              Icon(
+                                Icons.calendar_today,
+                                size: 12,
+                                color: _getDueDateColor(todo),
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                _formatDueDate(todo.dueDate),
+                                style: TextStyle(
+                                  color: _getDueDateColor(todo),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (todo.dueDate != null)
+                          IconButton(
+                            icon: Icon(Icons.event_busy, size: 20),
+                            color: Colors.grey,
+                            onPressed: () {
+                              setState(() {
+                                todos[realIndex].dueDate = null;
+                              });
+                              _saveTodos();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Muddat o\'chirildi'),
+                                  duration: Duration(seconds: 1),
+                                ),
+                              );
+                            },
+                          ),
+                        IconButton(
+                          icon: Icon(Icons.delete_outline,
+                              color: Colors.red[300]),
+                          onPressed: () {
+                            _deleteTodo(realIndex);
+                          },
+                        ),
+                      ],
+                    ),
                   ),
-                ],
+                ),
               ),
             ),
           ),
@@ -489,11 +529,14 @@ class _TodoListScreenState extends State<TodoListScreen> {
         title: title,
         category: selectedCategory,
         isCompleted: false,
-        dueDate: dueDate,  // ← YANGI
+        dueDate: dueDate,
       ));
     });
     _controller.clear();
     _saveTodos();
+
+    // Vibration qo'shish
+    Vibration.vibrate(duration: 50);
   }
 
   void _toggleTodo(int index) {
@@ -501,6 +544,9 @@ class _TodoListScreenState extends State<TodoListScreen> {
       todos[index].isCompleted = !todos[index].isCompleted;
     });
     _saveTodos();
+
+    // Vibration qo'shish
+    Vibration.vibrate(duration: 50);
   }
 
   void _deleteTodo(int index) {
@@ -509,6 +555,9 @@ class _TodoListScreenState extends State<TodoListScreen> {
       todos.removeAt(index);
     });
     _saveTodos();
+
+    // Vibration qo'shish
+    Vibration.vibrate(duration: 100);
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -526,6 +575,7 @@ class _TodoListScreenState extends State<TodoListScreen> {
       ),
     );
   }
+
   Future<void> _selectDate() async {
     final DateTime? picked = await showDatePicker(
       context: context,
