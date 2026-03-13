@@ -13,9 +13,9 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>todo_app</string>
+	<string>DailyDo</string>
 	<key>CFBundlePackageType</key>
-	<string>APPL</string>
+	<string>DailyDo</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(FLUTTER_BUILD_NAME)</string>
 	<key>CFBundleSignature</key>
