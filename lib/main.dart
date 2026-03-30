@@ -6,8 +6,12 @@ import 'package:intl/intl.dart';
 import 'package:vibration/vibration.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'statistics_screen.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'ad_helper.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await MobileAds.instance.initialize();
   runApp(TodoApp());
 }
 
@@ -59,15 +63,60 @@ class _TodoListScreenState extends State<TodoListScreen> {
   String selectedCategory = 'Work';
   String filterCategory = 'All';
 
+  // AdMob
+  BannerAd? _bannerAd;
+  bool _isBannerAdReady = false;
+
+  InterstitialAd? _interstitialAd;
+  int _taskCompletedCount = 0;
+
   @override
   void initState() {
     super.initState();
     _loadTodos();
+    _loadBannerAd();
+    _loadInterstitialAd();
   }
+
+  void _loadInterstitialAd() {
+    InterstitialAd.load(
+      adUnitId: AdHelper.interstitialAdUnitId,
+      request: AdRequest(),
+      adLoadCallback: InterstitialAdLoadCallback(
+        onAdLoaded: (ad) {
+          _interstitialAd = ad;
+
+          ad.fullScreenContentCallback = FullScreenContentCallback(
+            onAdDismissedFullScreenContent: (ad) {
+              ad.dispose();
+              _loadInterstitialAd(); // Keyingi reklama uchun
+            },
+            onAdFailedToShowFullScreenContent: (ad, error) {
+              ad.dispose();
+              _loadInterstitialAd();
+            },
+          );
+        },
+        onAdFailedToLoad: (error) {
+          print('Failed to load interstitial ad: ${error.message}');
+        },
+      ),
+    );
+  }
+
+  void _showInterstitialAd() {
+    if (_interstitialAd != null) {
+      _interstitialAd!.show();
+      _interstitialAd = null;
+    }
+  }
+
 
   @override
   void dispose() {
     _controller.dispose();
+    _bannerAd?.dispose();  // ← YANGI
+    _interstitialAd?.dispose();
     super.dispose();
   }
 
@@ -117,6 +166,12 @@ class _TodoListScreenState extends State<TodoListScreen> {
           Expanded(
             child: todos.isEmpty ? _buildEmptyState() : _buildTodoList(),
           ),
+          // Banner reklama (pastda)
+          if (_isBannerAdReady && _bannerAd != null)
+            Container(
+              height: 50,
+              child: AdWidget(ad: _bannerAd!),
+            ),
         ],
       ),
     );
@@ -514,6 +569,27 @@ class _TodoListScreenState extends State<TodoListScreen> {
       });
     }
   }
+  void _loadBannerAd() {
+    _bannerAd = BannerAd(
+      adUnitId: AdHelper.bannerAdUnitId,
+      request: AdRequest(),
+      size: AdSize.banner,
+      listener: BannerAdListener(
+        onAdLoaded: (_) {
+          setState(() {
+            _isBannerAdReady = true;
+          });
+        },
+        onAdFailedToLoad: (ad, err) {
+          print('Failed to load banner ad: ${err.message}');
+          _isBannerAdReady = false;
+          ad.dispose();
+        },
+      ),
+    );
+
+    _bannerAd!.load();
+  }
 
   Future<void> _saveTodos() async {
     final prefs = await SharedPreferences.getInstance();
@@ -547,6 +623,13 @@ class _TodoListScreenState extends State<TodoListScreen> {
 
     // Vibration qo'shish
     Vibration.vibrate(duration: 50);
+
+    if (todos[index].isCompleted) {
+      _taskCompletedCount++;
+      if (_taskCompletedCount % 3 == 0) {
+        _showInterstitialAd();
+      }
+    }
   }
 
   void _deleteTodo(int index) {
